@@ -256,11 +256,7 @@ fn event_loop(events_receiver: mpsc::Receiver<ServerCoreEvent>) {
                 ServerCoreEvent::Buttons(entries) => {
                     for entry in entries {
                         let value = match entry.value {
-                            ButtonValue::Binary(value) => FfiButtonValue {
                                 type_: FfiButtonType_BUTTON_TYPE_BINARY,
-                                __bindgen_anon_1: FfiButtonValue__bindgen_ty_1 {
-                                    binary: value.into(),
-                                },
                             },
 
                             ButtonValue::Scalar(value) => FfiButtonValue {
