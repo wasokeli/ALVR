@@ -845,8 +845,7 @@ fn connection_pipeline(
         initial_settings.connection.stream_port,
         stream_protocol,
         initial_settings.connection.dscp,
-        initial_settings.connection.server_send_buffer_bytes,
-        initial_settings.connection.server_recv_buffer_bytes,
+        initial_settings.connection.server_buffer_config,
         initial_settings.connection.packet_size as _,
     )?;
 

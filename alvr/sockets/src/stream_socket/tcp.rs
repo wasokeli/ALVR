@@ -3,7 +3,7 @@ use super::{
 };
 use crate::LOCAL_IP;
 use alvr_common::{ConResult, HandleTryAgain, ToCon, anyhow::Result, con_bail};
-use alvr_session::{DscpTos, SocketBufferSize};
+use alvr_session::{DscpTos, SocketBufferConfig};
 use socket2::Socket;
 use std::{
     collections::HashMap,
@@ -21,12 +21,11 @@ pub fn bind(
     timeout: Duration,
     port: u16,
     dscp: Option<DscpTos>,
-    send_buffer_bytes: SocketBufferSize,
-    recv_buffer_bytes: SocketBufferSize,
+    buffer_config: SocketBufferConfig,
 ) -> Result<TcpListener> {
     let socket = TcpListener::bind((LOCAL_IP, port))?.into();
 
-    crate::set_socket_buffers(&socket, send_buffer_bytes, recv_buffer_bytes).ok();
+    crate::set_socket_buffers(&socket, buffer_config).ok();
 
     crate::set_dscp(&socket, dscp);
 
@@ -62,8 +61,7 @@ pub fn connect_to_client(
     timeout: Duration,
     client_ips: &[IpAddr],
     port: u16,
-    send_buffer_bytes: SocketBufferSize,
-    recv_buffer_bytes: SocketBufferSize,
+    buffer_config: SocketBufferConfig,
 ) -> ConResult<TcpStream> {
     let split_timeout = timeout / client_ips.len() as u32;
 
@@ -78,7 +76,7 @@ pub fn connect_to_client(
     }
     let socket = res?.into();
 
-    crate::set_socket_buffers(&socket, send_buffer_bytes, recv_buffer_bytes).ok();
+    crate::set_socket_buffers(&socket, buffer_config).ok();
     socket.set_read_timeout(Some(timeout)).to_con()?;
 
     let socket = TcpStream::from(socket);

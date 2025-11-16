@@ -3,7 +3,7 @@ use super::{
 };
 use crate::LOCAL_IP;
 use alvr_common::{ConResult, HandleTryAgain, ToCon, anyhow::Result};
-use alvr_session::{DscpTos, SocketBufferSize};
+use alvr_session::{DscpTos, SocketBufferConfig};
 use socket2::{MaybeUninitSlice, Socket};
 use std::ffi::c_int;
 use std::{
@@ -40,13 +40,11 @@ fn socket_peek(socket: &mut Socket, buffer: &mut [u8]) -> ConResult<usize> {
 pub fn bind(
     port: u16,
     dscp: Option<DscpTos>,
-    send_buffer_bytes: SocketBufferSize,
-    recv_buffer_bytes: SocketBufferSize,
+    buffer_config: SocketBufferConfig,
 ) -> Result<UdpSocket> {
     let socket = UdpSocket::bind((LOCAL_IP, port))?.into();
 
-    crate::set_socket_buffers(&socket, send_buffer_bytes, recv_buffer_bytes).ok();
-
+    crate::set_socket_buffers(&socket, buffer_config).ok();
     crate::set_dscp(&socket, dscp);
 
     Ok(socket.into())
@@ -231,7 +229,7 @@ impl MultiplexedSocketReader for MultiplexedUdpReader {
                     .ok();
             }
 
-            // Keep only shards with later packet index (using wrapping logic)
+            // Discard older in-progress packets
             while let Some((idx, _)) = in_progress_packets
                 .iter()
                 .find(|(idx, _)| super::wrapping_cmp(**idx, packet_index) == Ordering::Less)

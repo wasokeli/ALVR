@@ -22,7 +22,7 @@ mod udp;
 use alvr_common::{
     AnyhowToCon, ConResult, HandleTryAgain, ToCon, anyhow::Result, parking_lot::Mutex,
 };
-use alvr_session::{DscpTos, SocketBufferSize, SocketProtocol};
+use alvr_session::{DscpTos, SocketBufferConfig, SocketProtocol};
 use bincode::config;
 use serde::{Serialize, de::DeserializeOwned};
 use std::{
@@ -190,20 +190,20 @@ pub struct StreamReceiver<H> {
 // maximum index distance that two packets can have is u32::MAX / 2 (which is plenty for any
 // reasonable circumstance).
 fn wrapping_cmp(lhs: u32, rhs: u32) -> Ordering {
-    // Note: since we are using u32, if lhs < rhs then the difference will be closer to u32::MAX
-    let diff = lhs.wrapping_sub(rhs);
-    if diff == 0 {
-        Ordering::Equal
-    } else if diff < u32::MAX / 2 {
+    const LOWER_BOUND: u32 = u32::MAX / 4;
+    const UPPER_BOUND: u32 = u32::MAX - LOWER_BOUND;
+
+    if lhs < LOWER_BOUND && rhs > UPPER_BOUND {
+        // lhs wrapped around, so its "unwrapped" value would be `lhs as u64 + u32::MAX`
         Ordering::Greater
-    } else {
-        // if diff > u32::MAX / 2, it means the sub operation wrapped
+    } else if lhs > UPPER_BOUND && rhs < LOWER_BOUND {
+        // rhs wrapped around
         Ordering::Less
+    } else {
+        lhs.cmp(&rhs)
     }
 }
 
-/// Get next packet reconstructing from shards.
-/// Returns true if a packet has been recontructed and copied into the buffer.
 impl<H: DeserializeOwned + Serialize> StreamReceiver<H> {
     pub fn recv(&mut self, timeout: Duration) -> ConResult<ReceiverData<H>> {
         let packet = self
@@ -251,22 +251,17 @@ impl StreamSocketBuilder {
         port: u16,
         stream_socket_config: SocketProtocol,
         stream_tos_config: Option<DscpTos>,
-        send_buffer_bytes: SocketBufferSize,
-        recv_buffer_bytes: SocketBufferSize,
+        buffer_config: SocketBufferConfig,
     ) -> Result<Self> {
         Ok(match stream_socket_config {
-            SocketProtocol::Udp => StreamSocketBuilder::Udp(udp::bind(
-                port,
-                stream_tos_config,
-                send_buffer_bytes,
-                recv_buffer_bytes,
-            )?),
+            SocketProtocol::Udp => {
+                StreamSocketBuilder::Udp(udp::bind(port, stream_tos_config, buffer_config)?)
+            }
             SocketProtocol::Tcp => StreamSocketBuilder::Tcp(tcp::bind(
                 timeout,
                 port,
                 stream_tos_config,
-                send_buffer_bytes,
-                recv_buffer_bytes,
+                buffer_config,
             )?),
         })
     }
@@ -303,25 +298,17 @@ impl StreamSocketBuilder {
         port: u16,
         protocol: SocketProtocol,
         dscp: Option<DscpTos>,
-        send_buffer_bytes: SocketBufferSize,
-        recv_buffer_bytes: SocketBufferSize,
+        buffer_config: SocketBufferConfig,
         max_packet_size: usize,
     ) -> ConResult<StreamSocket> {
         let (send_socket, receive_socket) = match protocol {
             SocketProtocol::Udp => {
-                let socket =
-                    udp::bind(port, dscp, send_buffer_bytes, recv_buffer_bytes).to_con()?;
+                let socket = udp::bind(port, dscp, buffer_config).to_con()?;
                 udp::connect(&socket, client_ip, port, timeout).to_con()?;
                 udp::split_multiplexed(socket, max_packet_size).to_con()?
             }
             SocketProtocol::Tcp => {
-                let socket = tcp::connect_to_client(
-                    timeout,
-                    &[client_ip],
-                    port,
-                    send_buffer_bytes,
-                    recv_buffer_bytes,
-                )?;
+                let socket = tcp::connect_to_client(timeout, &[client_ip], port, buffer_config)?;
                 tcp::split_multiplexed(socket, timeout).to_con()?
             }
         };
