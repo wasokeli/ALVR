@@ -1221,27 +1221,8 @@ Currently this cannot be reliably estimated automatically. The correct value sho
 }
 
 #[derive(SettingsSchema, Serialize, Deserialize, Clone)]
-pub struct MarkerColocationConfig {
-    #[schema(strings(display_string = "QR Code string"))]
-    pub qr_code_string: String,
-
-    #[schema(strings(
-        help = r"Offset coordinate on the floor between the marker and the playspace origin.
-The height doesn't need to be measured"
-    ))]
-    #[schema(suffix = "m")]
-    pub floor_offset: [f32; 2],
-}
-
-#[derive(SettingsSchema, Serialize, Deserialize, Clone)]
 pub enum RecenteringMode {
-    Stage {
-        #[schema(strings(
-            help = "Use a QR code to synchronize the playspace origin between players.",
-            notice = "Print at https://www.qr-code-generator.com"
-        ))]
-        marker_based_colocation: Switch<MarkerColocationConfig>,
-    },
+    Stage,
     LocalFloor,
     Local {
         #[schema(gui(slider(min = 0.0, max = 3.0)), suffix = "m")]
@@ -1251,6 +1232,20 @@ pub enum RecenteringMode {
         #[schema(gui(slider(min = 0.0, max = 3.0)), suffix = "m")]
         view_height: f32,
     },
+}
+
+#[derive(SettingsSchema, Serialize, Deserialize, Clone)]
+pub struct MarkerColocationConfig {
+    #[schema(strings(display_string = "QR Code string"))]
+    pub qr_code_string: String,
+
+    #[schema(flag = "real-time")]
+    #[schema(strings(
+        help = r"Offset coordinate on the floor between the marker and the playspace origin.
+The height of the marker doesn't need to be measured"
+    ))]
+    #[schema(suffix = "m")]
+    pub floor_offset: [f32; 2],
 }
 
 #[derive(SettingsSchema, Serialize, Deserialize, Clone, Copy)]
@@ -1276,6 +1271,13 @@ Tilted: the world gets tilted when long pressing the recentering button. This is
     ))]
     #[schema(flag = "real-time")]
     pub recentering_mode: RecenteringMode,
+
+    #[schema(strings(
+        string = "Marker-based co-location",
+        help = "Use a QR code to synchronize the playspace origin between players.",
+        notice = "Print at https://www.qr-code-generator.com"
+    ))]
+    pub marker_colocation: Switch<MarkerColocationConfig>,
 
     #[schema(flag = "steamvr-restart")]
     pub controllers: Switch<ControllersConfig>,
@@ -2105,21 +2107,19 @@ pub fn session_settings_default() -> SettingsDefault {
                 },
             },
             recentering_mode: RecenteringModeDefault {
-                Stage: RecenteringModeStageDefault {
-                    marker_based_colocation: SwitchDefault {
-                        enabled: false,
-                        content: MarkerColocationConfigDefault {
-                            qr_code_string: String::new(),
-                            floor_offset: ArrayDefault {
-                                gui_collapsed: false,
-                                content: [0.0, 0.0],
-                            },
-                        },
-                    },
-                },
                 Local: RecenteringModeLocalDefault { view_height: 1.5 },
                 Tilted: RecenteringModeTiltedDefault { view_height: 1.5 },
                 variant: RecenteringModeDefaultVariant::LocalFloor,
+            },
+            marker_colocation: SwitchDefault {
+                enabled: false,
+                content: MarkerColocationConfigDefault {
+                    qr_code_string: String::new(),
+                    floor_offset: ArrayDefault {
+                        gui_collapsed: false,
+                        content: [0.0, 0.0],
+                    },
+                },
             },
             max_prediction_ms: 100,
         },

@@ -3,11 +3,9 @@ use alvr_common::{
     anyhow::Result,
     glam::{Quat, UVec2, Vec2},
     semver::Version,
-    settings_schema::Switch,
 };
 use alvr_session::{
-    ClientsidePostProcessingConfig, CodecType, PassthroughMode, RecenteringMode, SessionConfig,
-    Settings,
+    ClientsidePostProcessingConfig, CodecType, PassthroughMode, SessionConfig, Settings,
 };
 use serde::{Deserialize, Serialize};
 use serde_json as json;
@@ -330,7 +328,6 @@ pub enum FirewallRulesAction {
 pub struct RealTimeConfig {
     pub passthrough: Option<PassthroughMode>,
     pub clientside_post_processing: Option<ClientsidePostProcessingConfig>,
-    pub marker_colocation: bool,
     pub ext_str: String,
 }
 
@@ -343,12 +340,6 @@ impl RealTimeConfig {
                 .clientside_post_processing
                 .clone()
                 .into_option(),
-            marker_colocation: matches!(
-                settings.headset.recentering_mode,
-                RecenteringMode::Stage {
-                    marker_based_colocation: Switch::Enabled(_)
-                }
-            ),
             ext_str: String::new(), // No extensions for now
         }
     }

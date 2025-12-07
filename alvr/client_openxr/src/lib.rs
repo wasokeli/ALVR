@@ -26,7 +26,7 @@ use interaction::{InteractionContext, InteractionSourcesConfig};
 use lobby::Lobby;
 use openxr as xr;
 use passthrough::PassthroughLayer;
-use std::{ffi::CStr, path::Path, rc::Rc, sync::Arc, thread, time::Duration};
+use std::{collections::HashSet, ffi::CStr, path::Path, rc::Rc, sync::Arc, thread, time::Duration};
 use stream::StreamContext;
 
 fn from_xr_vec3(v: xr::Vector3f) -> Vec3 {
@@ -357,7 +357,7 @@ pub fn entry_point() {
             face_tracking: None,
             body_tracking: lobby_body_tracking_config,
             prefers_multimodal_input: true,
-            initial_marker_discovery_state: true,
+            markers_to_track: Some(HashSet::new()),
         };
         interaction_context
             .write()
@@ -509,9 +509,6 @@ pub fn entry_point() {
                             passthrough_layer = PassthroughLayer::new(&xr_session, platform).ok();
                         } else if config.passthrough.is_none() && passthrough_layer.is_some() {
                             passthrough_layer = None;
-                        }
-                        if let Some(context) = &interaction_context.read().marker_spatial_context {
-                            context.set_discovery_enabled(config.marker_colocation);
                         }
 
                         if let Some(stream) = &mut stream_context {

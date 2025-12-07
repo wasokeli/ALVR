@@ -25,7 +25,7 @@ use alvr_packets::{
 };
 use alvr_session::{
     BodyTrackingSinkConfig, CodecType, ControllersEmulationMode, FrameSize, H264Profile,
-    OpenvrConfig, RecenteringMode, SessionConfig, SocketProtocol,
+    OpenvrConfig, SessionConfig, SocketProtocol,
 };
 use alvr_sockets::{
     CONTROL_PORT, KEEPALIVE_INTERVAL, KEEPALIVE_TIMEOUT, PeerType, ProtoControlSocket,
@@ -1194,11 +1194,9 @@ fn connection_pipeline(
                         if !initial_settings.headset.tracking_ref_only {
                             let session_manager_lock = SESSION_MANAGER.read();
                             let config = &session_manager_lock.settings().headset;
-                            if !matches!(config.recentering_mode, RecenteringMode::Stage { .. }) {
-                                ctx.tracking_manager
-                                    .write()
-                                    .recenter(&config.recentering_mode);
-                            }
+                            ctx.tracking_manager
+                                .write()
+                                .recenter(&config.recentering_mode);
 
                             let area = packet.unwrap_or(Vec2::new(2.0, 2.0));
                             let wh = area.x * area.y;

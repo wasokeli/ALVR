@@ -8,14 +8,11 @@ use crate::{
 };
 use alvr_common::{
     glam::{Quat, Vec3},
-    settings_schema::Switch,
     *,
 };
 use alvr_graphics::HandData;
 use alvr_packets::{ButtonEntry, ButtonValue, FaceData, FaceExpressions, StreamConfig};
-use alvr_session::{
-    BodyTrackingBDConfig, BodyTrackingSourcesConfig, FaceTrackingSourcesConfig, RecenteringMode,
-};
+use alvr_session::{BodyTrackingBDConfig, BodyTrackingSourcesConfig, FaceTrackingSourcesConfig};
 use openxr as xr;
 use std::{
     collections::{HashMap, HashSet},
@@ -148,7 +145,7 @@ pub struct InteractionSourcesConfig {
     pub face_tracking: Option<FaceTrackingSourcesConfig>,
     pub body_tracking: Option<BodyTrackingSourcesConfig>,
     pub prefers_multimodal_input: bool,
-    pub initial_marker_discovery_state: bool,
+    pub markers_to_track: Option<HashSet<String>>,
 }
 
 impl InteractionSourcesConfig {
@@ -172,12 +169,12 @@ impl InteractionSourcesConfig {
                 .multimodal_tracking
                 .as_option()
                 .is_some_and(|c| c.enabled),
-            initial_marker_discovery_state: matches!(
-                config.settings.headset.recentering_mode,
-                RecenteringMode::Stage {
-                    marker_based_colocation: Switch::Enabled(_)
-                }
-            ),
+            markers_to_track: config
+                .settings
+                .headset
+                .marker_colocation
+                .as_option()
+                .map(|c| HashSet::from_iter([c.qr_code_string.clone()])),
         }
     }
 }
@@ -697,10 +694,12 @@ impl InteractionContext {
             }
         }
 
-        self.marker_spatial_context = check_ext_object(
-            "MarkerSpatialContext",
-            QRCodesSpatialContext::new(&self.xr_session, config.initial_marker_discovery_state),
-        );
+        self.marker_spatial_context = config.markers_to_track.as_ref().and_then(|strings| {
+            check_ext_object(
+                "QRCodesSpatialContext",
+                QRCodesSpatialContext::new(&self.xr_session, strings.clone()),
+            )
+        });
     }
 }
 

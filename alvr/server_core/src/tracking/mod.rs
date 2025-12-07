@@ -82,7 +82,7 @@ impl TrackingManager {
 
     pub fn recenter(&mut self, recentering_mode: &RecenteringMode) {
         let position = match recentering_mode {
-            RecenteringMode::Stage { .. } => Vec3::ZERO,
+            RecenteringMode::Stage => Vec3::ZERO,
             RecenteringMode::LocalFloor => {
                 let mut pos = self.last_head_pose.position;
                 pos.y = 0.0;
@@ -95,7 +95,7 @@ impl TrackingManager {
         };
 
         let orientation = match recentering_mode {
-            RecenteringMode::Stage { .. } => Quat::IDENTITY,
+            RecenteringMode::Stage => Quat::IDENTITY,
             RecenteringMode::LocalFloor | RecenteringMode::Local { .. } => {
                 let mut rot = self.last_head_pose.orientation;
                 // extract yaw rotation
@@ -452,10 +452,7 @@ pub fn tracking_loop(
             if !tracking.markers.is_empty() {
                 tracking_manager_lock.report_markers(tracking.markers);
 
-                if let RecenteringMode::Stage {
-                    marker_based_colocation: Switch::Enabled(config),
-                } = &headset_config.recentering_mode
-                {
+                if let Some(config) = headset_config.marker_colocation.as_option() {
                     tracking_manager_lock.recenter_from_marker(config);
                 };
             }
